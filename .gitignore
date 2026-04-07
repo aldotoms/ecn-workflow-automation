@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+# data/
+*.msg
+.DS_Store
+*.pyc
+~$* # Archivos temporales de Excel
