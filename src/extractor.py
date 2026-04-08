@@ -60,7 +60,8 @@ if __name__ == "__main__":
         df_ecn = get_data_from_emails(folder)
         
          # Definimos la ruta (usando la 'r' o '/')
-        output_path = r"O:\11-SFM_Level_2_Planning\ECN_Project\data\raw\ecn_raw_data.csv"
+        # output_path = r"O:\11-SFM_Level_2_Planning\ECN_Project\data\raw\ecn_raw_data.csv"
+        output_path = r"C:\Users\10147115\ECN_Project\data\raw\ecn_raw_data.csv"
 
         # ESTA LÍNEA ES CLAVE: Crea las carpetas si no existen
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
