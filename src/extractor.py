@@ -6,7 +6,7 @@ def connect_to_outlook():
     # Conectamos con la aplicación Outlook
     outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
     
-    # 1. Accedemos específicamente al "Online Archive" que se ve en tu imagen
+    # 1. Accedemos específicamente al "Online Archive"
     # Debes usar el nombre exacto que aparece arriba de 'Inbox' en Outlook
     archive_name = "Online Archive - AOrduna@flowserve.com"
     
@@ -59,14 +59,12 @@ if __name__ == "__main__":
     if folder:
         df_ecn = get_data_from_emails(folder)
         
-         # Definimos la ruta (usando la 'r' o '/')
-        output_path = r"O:\11-SFM_Level_2_Planning\ECN_Project\data\raw\ecn_raw_data.csv"
+        # Guardamos una copia en tu carpeta data/raw para el portafolio; Definimos la ruta (usando la 'r' o '/')
+        # output_path = r"O:\11-SFM_Level_2_Planning\ECN_Project\data\raw\ecn_raw_data.csv" # Carpeta compartida Planeación 
+        output_path = r"C:\Users\10147115\ECN_Project\data\raw\ecn_raw_data.csv"            # Carpeta local PC aorduna
 
         # ESTA LÍNEA ES CLAVE: Crea las carpetas si no existen
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
-        # Guardamos una copia en tu carpeta data/raw para el portafolio
-        # output_path = r"O:\11.- SFM Level 2 Planning\ECN_Project\data\raw\ecn_raw_data.csv"
         
         # Ahora sí, guardamos el archivo
         df_ecn.to_csv(output_path, index=False)

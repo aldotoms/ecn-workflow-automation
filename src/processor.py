@@ -1,6 +1,9 @@
 import pandas as pd
-import re
 import os
+import re
+from openpyxl import load_workbook, Workbook
+from openpyxl.worksheet.table import Table, TableStyleInfo
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 def clean_ecn_data(input_path, output_path):
     """Limpia los datos del CSV crudo extraído de Outlook."""
@@ -28,41 +31,77 @@ def clean_ecn_data(input_path, output_path):
     
     return df_clean
 
-def update_excel_tracker(df_new, excel_path):
-    """Une los nuevos ECNs con el Excel existente sin borrar notas manuales."""
-    if not os.path.exists(excel_path):
-        # Si no existe el Excel, creamos las columnas de seguimiento manual
-        df_new['Classification'] = "BOM_Rev"
-        df_new['Urgency'] = "1_Green"
-        df_new['Actions_Required'] = "Regenerate_PKs"
-        df_new['Status'] = "Pending"
-        df_new.to_excel(excel_path, index=False)
-        print(f"-> Archivo Maestro creado: {excel_path}")
+def update_excel_tracker(input_path, output_path):
+    """Actualiza o crea el Excel asegurando la existencia de la Tabla oficial."""
+    sheet_name = "ECNs"
+    table_name = "Tbl_ECN_Master"
+
+    # Preparar los datos nuevos (si el archivo no existe, estos serán los primeros)
+    if not os.path.exists(output_path):
+        df_to_add = input_path.copy()
+        df_to_add['Classification'] = "BOM_Rev"
+        df_to_add['Urgency'] = "1_Green"
+        df_to_add['Actions_Required'] = "Regenerate_PKs"
+        df_to_add['Status'] = "Pending"
+        is_new_file = True
     else:
-        # Leemos el Excel actual que ya tiene tus notas
-        df_existing = pd.read_excel(excel_path)
-        
-        # Filtramos: Solo tomamos ECNs que NO estén ya en el Excel
-        new_records = df_new[~df_new['ECN_Number'].isin(df_existing['ECN_Number'])].copy()
-        
-        if not new_records.empty:
-            new_records['Classification'] = "BOM_Rev"
-            new_records['Urgency'] = "1_Green"
-            new_records['Actions_Required'] = "Regenerate_PKs"
-            new_records['Status'] = "Pending"
-            
-            # Concatenamos y guardamos
-            df_final = pd.concat([df_existing, new_records], ignore_index=True)
-            df_final.to_excel(excel_path, index=False)
-            print(f"-> ¡Éxito! Se agregaron {len(new_records)} ECNs nuevos al Tracker.")
-        else:
-            print("-> No se detectaron ECNs nuevos. El Tracker está al día.")
+        df_existing = pd.read_excel(output_path, sheet_name=sheet_name)
+        df_to_add = input_path[~input_path['ECN_Number'].isin(df_existing['ECN_Number'])].copy()
+        if not df_to_add.empty:
+            df_to_add['Classification'] = "BOM_Rev"
+            df_to_add['Urgency'] = "1_Green"
+            df_to_add['Actions_Required'] = "Regenerate_PKs"
+            df_to_add['Status'] = "Pending"
+        is_new_file = False
+
+    if df_to_add.empty and not is_new_file:
+        print("-> No hay ECNs nuevos. El archivo se mantuvo intacto.")
+        return
+
+    # --- MANEJO CON OPENPYXL ---
+    if is_new_file:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+        # Escribir encabezados y datos
+        for r in dataframe_to_rows(df_to_add, index=False, header=True):
+            ws.append(r)
+    else:
+        wb = load_workbook(output_path)
+        ws = wb[sheet_name]
+        # Escribir solo los datos nuevos (sin encabezados)
+        for r in dataframe_to_rows(df_to_add, index=False, header=False):
+            ws.append(r)
+
+    # ACTUALIZAR O CREAR LA TABLA (El corazón de la automatización)
+    last_col_letter = ws.cell(row=1, column=ws.max_column).column_letter
+    new_range = f"A1:{last_col_letter}{ws.max_row}"
+
+    if table_name in ws.tables:
+        # Si la tabla ya existe, solo actualizamos su rango
+        ws.tables[table_name].ref = new_range
+    else:
+        # Si es archivo nuevo, creamos la tabla desde cero
+        tab = Table(displayName=table_name, ref=new_range)
+        # Agregamos un estilo visual por defecto (puedes cambiarlo)
+        style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False,
+                               showLastColumn=False, showRowStripes=True, showColumnStripes=False)
+        tab.tableStyleInfo = style
+        ws.add_table(tab)
+
+    wb.save(output_path)
+    print(f"-> Proceso completado: Archivo {'creado' if is_new_file else 'actualizado'} y tabla '{table_name}' lista.")
 
 if __name__ == "__main__":
-    # Rutas de archivos
-    raw_csv = r"O:\11-SFM_Level_2_Planning\ECN_Project\data\raw\ecn_raw_data.csv"
-    processed_csv = r"O:\11-SFM_Level_2_Planning\ECN_Project\data\processed\ecn_cleaned_data.csv"
-    master_excel = r"O:\11-SFM_Level_2_Planning\ECN_Project\ECN_Tracker_Master.xlsx"
+    # Rutas de archivos en carpeta compartida de Planeación
+    # raw_csv = r"O:\11-SFM_Level_2_Planning\ECN_Project\data\raw\ecn_raw_data.csv"
+    # processed_csv = r"O:\11-SFM_Level_2_Planning\ECN_Project\data\processed\ecn_cleaned_data.csv"
+    # master_excel = r"O:\11-SFM_Level_2_Planning\ECN_Project\ECN_Tracker_Master.xlsx"
+    
+    # Rutas de archivos en local computadora de aorduna
+    raw_csv = r"C:\Users\10147115\ECN_Project\data\raw\ecn_raw_data.csv"
+    processed_csv = r"C:\Users\10147115\ECN_Project\data\processed\ecn_cleaned_data.csv"
+    master_excel = r"C:\Users\10147115\ECN_Project\ECN_Tracker_Master.xlsx"
     
     # Ejecución del Pipeline
     print("Iniciando procesamiento de datos...")
